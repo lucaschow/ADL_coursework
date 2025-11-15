@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# PyTorch / ML
+*.pth
+*.pt
+*.ckpt
+*.h5
+*.pkl
+*.pickle
+
+# Logs and outputs
+logs/
+runs/
+*.log
+tensorboard/
+wandb/
+
+# Dataset (exclude large image files)
+dataset/train/**/*.jpg
+dataset/test/*.jpg
+dataset/val/*.jpg
+# But keep the label files
+!dataset/train/**/text_steps.txt
+!dataset/test_labels.txt
+!dataset/val_labels.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+
+# Model outputs
+outputs/
+results/
+checkpoints/
+
