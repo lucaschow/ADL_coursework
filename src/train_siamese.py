@@ -2,6 +2,7 @@
 import time
 from multiprocessing import cpu_count
 from typing import Union, NamedTuple
+from dataloader import ProgressionDataset
 
 import torch
 import torch.backends.cudnn
@@ -17,10 +18,10 @@ from torchvision import transforms
 import argparse
 from pathlib import Path
 
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = True #Just improves training speeds, can see later if we want to keep
 
 parser = argparse.ArgumentParser(
-    description="Train Siamese ProgressionNet for Recipe Progression Classification",
+    description="Train a Siamese network on ProgressionDataset",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 default_dataset_dir = Path("dataset")
@@ -102,12 +103,14 @@ else:
 def main(args):
     transform = transforms.ToTensor()
     args.dataset_root.mkdir(parents=True, exist_ok=True)
-    train_dataset = torchvision.datasets.CIFAR10(
-        args.dataset_root, train=True, download=True, transform=transform
-    )
-    test_dataset = torchvision.datasets.CIFAR10(
-        args.dataset_root, train=False, download=False, transform=transform
-    )
+    epoch_size = 1000
+    recepie_ids_list = ["P01_R01_instance_0","P01_R01_instance_1","P01_R01_instance_2","P01_R03","P01_R04","P01_R05","P01_R07","P01_R09","P02_R01","P02_R02","P02_R03_instance_0","P02_R03_instance_1","P02_R03_instance_2","P02_R03_instance_3","P02_R05","P02_R07","P02_R08","P02_R10","P02_R11","P03_R01","P03_R02","P03_R03_instance_0","P03_R03_instance_2","P03_R03_instance_3","P03_R04","P03_R05","P03_R06","P03_R07","P03_R08","P03_R09","P03_R10","P04_R01","P04_R02","P04_R03","P04_R04","P04_R05","P04_R06","P05_R01","P05_R02_instance_0","P05_R02_instance_2","P05_R03","P05_R04","P05_R05","P05_R06","P07_R01","P07_R02","P07_R03","P07_R04","P07_R05","P07_R06","P07_R07","P08_R01","P08_R02","P08_R04","P08_R05","P08_R06","P08_R07","P08_R08","P08_R09","P09_R01","P09_R02","P09_R03_instance_0","P09_R03_instance_1","P09_R04","P09_R05","P09_R06"]
+
+    
+    train_dataset = ProgressionDataset(root_dir='dataset/train', transform=transform, mode='train', recipe_ids_list=recepie_ids_list, epoch_size=epoch_size)
+    #you didnt load in the data correctly you melon - we only have train
+    test_dataset = ProgressionDataset(root_dir='dataset/test', transform=transform, mode='test', label_file='dataset/test_labels.txt')
+    val_dataset = ProgressionDataset(root_dir='dataset/val', transform=transform, mode='val', label_file='dataset/val_labels.txt')
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         shuffle=True,
@@ -117,6 +120,13 @@ def main(args):
     )
     test_loader = torch.utils.data.DataLoader(
         test_dataset,
+        shuffle=False,
+        batch_size=args.batch_size,
+        num_workers=args.worker_count,
+        pin_memory=True,
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
         shuffle=False,
         batch_size=args.batch_size,
         num_workers=args.worker_count,
