@@ -160,107 +160,64 @@ def main(args):
 
     summary_writer.close()
 
-
-class Siamese(nn.Module):
-    def __init__(self, height: int, width: int, channels: int, class_count: int):
+#This is one branch of the cnn before concat
+class Branch(nn.Module):
+    def __init__(self,  channels):
         super().__init__()
-        self.input_shape = ImageShape(height=height, width=width, channels=channels)
-        self.class_count = class_count
-        #Block 1 - could put this in a sequence 
-        self.conv1_a = nn.Conv2d(
-            in_channels=self.input_shape.channels,
-            out_channels=64,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv1_a) 
-        self.bn1_a = nn.BatchNorm2d(64)
-        #RELU, done in foward
-        self.conv1_b = nn.Conv2d(
-            in_channels=64,
-            out_channels=64,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv1_b) 
-        self.bn1_b = nn.BatchNorm2d(64)
-        self.pool1 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        #BLOCK 2
-        self.conv2_a = nn.Conv2d(
-            in_channels=64,
-            out_channels=128,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv2_a)
-        self.bn2_a = nn.BatchNorm2d(128)
-        self.conv2_b = nn.Conv2d(
-            in_channels=128,
-            out_channels=128,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv2_b) 
-        self.bn2_b = nn.BatchNorm2d(128)
-        #Block 3
-        self.conv3_a = nn.Conv2d(
-            in_channels=128,
-            out_channels=256,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv3_a) 
-        self.bn3_a = nn.BatchNorm2d(256)
-        self.conv3_b = nn.Conv2d(
-            in_channels=256,
-            out_channels=256,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv3_b) 
-        self.bn3_b = nn.BatchNorm2d(256)
-        #BLOCK 4
-        self.conv4_a = nn.Conv2d(
-            in_channels=256,
-            out_channels=512,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv4_a) 
-        self.bn4_a = nn.BatchNorm2d(512)
-        self.conv4_b = nn.Conv2d(
-            in_channels=512,
-            out_channels=512,
-            kernel_size=(3, 3),
-            padding=(1, 1),
-        )
-        self.initialise_layer(self.conv4_b) 
-        self.bn4_b = nn.BatchNorm2d(512)
-        #pooling layers
-        self.pool1 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        self.pool2 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        self.pool3 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        self.pool4 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        self.chunk1 = nn.Sequential(
+            nn.Conv2d(channels, 64, kernel_size=3, padding=1, bias=False),
 
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2,2),
+        )
+
+
+        self.chunk2 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2,2),
+        )
+
+
+        self.chunk3 = nn.Sequential(
+            nn.Conv2d(128, 256, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2,2),
+        )
+
+
+        self.chunk4 = nn.Sequential(
+            nn.Conv2d(256, 512, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1, 1)),
+        )
+
+        self.apply(self.initialise_layer)
+        
+       
         #Note - we could think about having a static batch norm initialiser for better learning
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        #block1
-        x = F.relu(self.bn1_a(self.conv1_a(x)))
-        x = F.relu(self.bn1_b(self.conv1_b(x)))
-        x = self.pool1(x)
-        #block2
-        x = F.relu(self.bn2_a(self.conv2_a(x)))
-        x = F.relu(self.bn2_b(self.conv2_b(x)))
-        x = self.pool2(x)
-        #block3
-        x = F.relu(self.bn3_a(self.conv3_a(x)))
-        x = F.relu(self.bn3_b(self.conv3_b(x)))
-        x = self.pool3(x)
-        #block4
-        x = F.relu(self.bn4_a(self.conv4_a(x)))
-        x = F.relu(self.bn4_b(self.conv4_b(x)))
-        x = self.pool4(x)
+        x = self.chunk1(images)           
+        x = self.chunk2(x)           
+        x = self.chunk3(x)           
+        x = self.chunk4(x) 
         return x
 
     @staticmethod
@@ -269,6 +226,17 @@ class Siamese(nn.Module):
             nn.init.zeros_(layer.bias)
         if hasattr(layer, "weight"):
             nn.init.kaiming_normal_(layer.weight)
+
+class Siamese(nn.Module):
+    def __init__(self, in_channels=3):
+        super().__init__()
+        self.branch = Branch(channels=in_channels) #initialise once so we get shared weights
+
+    def foward(self, anchor, comparator):
+        b1 = self.branch(anchor)
+        b2 = self.branch(comparator)
+        return b1,b2
+
 
 
 class Trainer:
