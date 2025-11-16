@@ -161,34 +161,106 @@ def main(args):
     summary_writer.close()
 
 
-class CNN(nn.Module):
+class Siamese(nn.Module):
     def __init__(self, height: int, width: int, channels: int, class_count: int):
         super().__init__()
         self.input_shape = ImageShape(height=height, width=width, channels=channels)
         self.class_count = class_count
-
-        self.conv1 = nn.Conv2d(
+        #Block 1 - could put this in a sequence 
+        self.conv1_a = nn.Conv2d(
             in_channels=self.input_shape.channels,
-            out_channels=32,
-            kernel_size=(5, 5),
-            padding=(2, 2),
+            out_channels=64,
+            kernel_size=(3, 3),
+            padding=(1, 1),
         )
-        self.initialise_layer(self.conv1)
+        self.initialise_layer(self.conv1_a) 
+        self.bn1_a = nn.BatchNorm2d(64)
+        #RELU, done in foward
+        self.conv1_b = nn.Conv2d(
+            in_channels=64,
+            out_channels=64,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv1_b) 
+        self.bn1_b = nn.BatchNorm2d(64)
         self.pool1 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
-        ## TASK 2-1: Define the second convolutional layer and initialise its parameters
-        ## TASK 3-1: Define the second pooling layer
-        ## TASK 5-1: Define the first FC layer and initialise its parameters
-        ## TASK 6-1: Define the last FC layer and initialise its parameters
+        #BLOCK 2
+        self.conv2_a = nn.Conv2d(
+            in_channels=64,
+            out_channels=128,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv2_a)
+        self.bn2_a = nn.BatchNorm2d(128)
+        self.conv2_b = nn.Conv2d(
+            in_channels=128,
+            out_channels=128,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv2_b) 
+        self.bn2_b = nn.BatchNorm2d(128)
+        #Block 3
+        self.conv3_a = nn.Conv2d(
+            in_channels=128,
+            out_channels=256,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv3_a) 
+        self.bn3_a = nn.BatchNorm2d(256)
+        self.conv3_b = nn.Conv2d(
+            in_channels=256,
+            out_channels=256,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv3_b) 
+        self.bn3_b = nn.BatchNorm2d(256)
+        #BLOCK 4
+        self.conv4_a = nn.Conv2d(
+            in_channels=256,
+            out_channels=512,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv4_a) 
+        self.bn4_a = nn.BatchNorm2d(512)
+        self.conv4_b = nn.Conv2d(
+            in_channels=512,
+            out_channels=512,
+            kernel_size=(3, 3),
+            padding=(1, 1),
+        )
+        self.initialise_layer(self.conv4_b) 
+        self.bn4_b = nn.BatchNorm2d(512)
+        #pooling layers
+        self.pool1 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        self.pool2 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        self.pool3 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        self.pool4 = nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+
+        #Note - we could think about having a static batch norm initialiser for better learning
 
     def forward(self, images: torch.Tensor) -> torch.Tensor:
-        x = F.relu(self.conv1(images))
+        #block1
+        x = F.relu(self.bn1_a(self.conv1_a(x)))
+        x = F.relu(self.bn1_b(self.conv1_b(x)))
         x = self.pool1(x)
-        ## TASK 2-2: Pass x through the second convolutional layer
-        ## TASK 3-2: Pass x through the second pooling layer
-        ## TASK 4: Flatten the output of the pooling layer so it is of shape
-        ##         (batch_size, 4096)
-        ## TASK 5-2: Pass x through the first fully connected layer
-        ## TASK 6-2: Pass x through the last fully connected layer
+        #block2
+        x = F.relu(self.bn2_a(self.conv2_a(x)))
+        x = F.relu(self.bn2_b(self.conv2_b(x)))
+        x = self.pool2(x)
+        #block3
+        x = F.relu(self.bn3_a(self.conv3_a(x)))
+        x = F.relu(self.bn3_b(self.conv3_b(x)))
+        x = self.pool3(x)
+        #block4
+        x = F.relu(self.bn4_a(self.conv4_a(x)))
+        x = F.relu(self.bn4_b(self.conv4_b(x)))
+        x = self.pool4(x)
         return x
 
     @staticmethod
