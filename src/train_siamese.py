@@ -133,13 +133,13 @@ def main(args):
         pin_memory=True,
     )
 
-    model = CNN(height=32, width=32, channels=3, class_count=10)
+    model = Siamese(in_channels=3) #was CNN
 
     ## TASK 8: Redefine the criterion to be softmax cross entropy
-    criterion = lambda logits, labels: torch.tensor(0)
+    criterion = nn.CrossEntropyLoss()
 
     ## TASK 11: Define the optimizer
-    optimizer = None
+    optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
 
     log_dir = get_summary_writer_log_dir(args)
     print(f"Writing logs to {log_dir}")
@@ -231,11 +231,22 @@ class Siamese(nn.Module):
     def __init__(self, in_channels=3):
         super().__init__()
         self.branch = Branch(channels=in_channels) #initialise once so we get shared weights
+        self.fc1 =nn.Linear(1024,512)
+        self.fc2 = nn.Linear(512,3)
+        self.ReLU = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(p=0.5)
 
-    def foward(self, anchor, comparator):
+    def forward(self, anchor, comparator):
         b1 = self.branch(anchor)
         b2 = self.branch(comparator)
-        return b1,b2
+        b1 = b1.view(b1.size(0), -1)
+        b2 = b2.view(b2.size(0), -1) 
+        x = torch.cat((b1, b2), dim=1)
+        x = self.fc1(x)
+        x = self.ReLU(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        return x
 
 
 
@@ -271,22 +282,16 @@ class Trainer:
         for epoch in range(start_epoch, epochs):
             self.model.train()
             data_load_start_time = time.time()
-            for batch, labels in self.train_loader:
-                batch = batch.to(self.device)
+            for img_a, img_b, labels in self.train_loader:
+                img_a = img_a.to(self.device)
+                img_b = img_b.to(self.device)
                 labels = labels.to(self.device)
                 data_load_end_time = time.time()
-
-
-                ## TASK 1: Compute the forward pass of the model, print the output shape
-                ##         and quit the program
-                #output =
-
-                ## TASK 7: Rename `output` to `logits`, remove the output shape printing
-                ##         and get rid of the `import sys; sys.exit(1)`
-
-                ## TASK 9: Compute the loss using self.criterion and
-                ##         store it in a variable called `loss`
-                loss = torch.tensor(0)
+                logits =self.model(img_a, img_b)
+                loss = self.criterion(logits, labels)
+                loss.backward()
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
                 ## TASK 10: Compute the backward pass
 
@@ -351,10 +356,11 @@ class Trainer:
 
         # No need to track gradients for validation, we're not optimizing.
         with torch.no_grad():
-            for batch, labels in self.val_loader:
-                batch = batch.to(self.device)
+            for img_a,img_b, labels in self.val_loader:
+                img_a = img_a.to(self.device)
+                img_b = img_b.to(self.device)
                 labels = labels.to(self.device)
-                logits = self.model(batch)
+                logits = self.model((img_a,img_b))
                 loss = self.criterion(logits, labels)
                 total_loss += loss.item()
                 preds = logits.argmax(dim=-1).cpu().numpy()
